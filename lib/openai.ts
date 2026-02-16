@@ -40,9 +40,9 @@ export interface ExtractedInvoiceData {
 export async function extractInvoiceData(fileUrl: string): Promise<ExtractedInvoiceData> {
   const venice = getVenice()
   
-  // Using Qwen 2.5 VL 72B - Venice's vision model for document understanding
+  // Using Qwen3 VL 235B - Venice's default vision model for document understanding
   const response = await venice.chat.completions.create({
-    model: 'qwen-2.5-vl-72b',
+    model: 'qwen3-vl-235b-a22b',
     messages: [
       {
         role: 'system',
