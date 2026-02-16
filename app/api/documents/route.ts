@@ -3,14 +3,15 @@ import { prisma } from '@/lib/db'
 
 export async function GET() {
   try {
-    // For now, return all documents (anonymous mode)
-    // In production, you'd filter by userId from session
+    console.log('Fetching documents...')
+    
     const documents = await prisma.document.findMany({
       orderBy: { createdAt: 'desc' },
       take: 50,
     })
 
-    // Serialize dates
+    console.log('Found documents:', documents.length)
+
     const serializedDocuments = documents.map(doc => ({
       ...doc,
       createdAt: doc.createdAt.toISOString(),
@@ -19,10 +20,10 @@ export async function GET() {
     }))
 
     return NextResponse.json({ documents: serializedDocuments })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to fetch documents:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch documents' },
+      { error: 'Failed to fetch documents: ' + error.message },
       { status: 500 }
     )
   }
