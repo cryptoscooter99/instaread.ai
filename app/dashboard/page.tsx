@@ -15,9 +15,11 @@ export default function DashboardPage() {
   const [documents, setDocuments] = useState<Document[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Fetch documents on mount
+  // Fetch documents on mount and poll every 3 seconds
   useEffect(() => {
     fetchDocuments()
+    const interval = setInterval(fetchDocuments, 3000)
+    return () => clearInterval(interval)
   }, [])
 
   const fetchDocuments = async () => {
