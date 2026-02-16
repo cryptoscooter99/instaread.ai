@@ -58,6 +58,9 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
       // Immediately refresh the list
       onUploadComplete()
       
+      // Force page reload to ensure new doc appears
+      window.location.reload()
+      
     } catch (err: any) {
       setError(err.message)
     } finally {
