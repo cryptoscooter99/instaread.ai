@@ -166,6 +166,9 @@ export function DocumentList({ documents }: DocumentListProps) {
 
   return (
     <div className="space-y-4">
+      {>/* Debug: Show count */}<
+      <p className="text-sm text-gray-500">Total documents: {documents.length}</p>
+      
       {documents.map((doc) => (
         <div
           key={doc.id}

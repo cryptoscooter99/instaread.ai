@@ -27,7 +27,10 @@ export default function DashboardPage() {
       const response = await fetch('/api/documents')
       if (response.ok) {
         const data = await response.json()
+        console.log('Fetched documents:', data) // Debug
         setDocuments(data.documents || [])
+      } else {
+        console.error('Failed to fetch:', response.status)
       }
     } catch (error) {
       console.error('Failed to fetch documents:', error)
