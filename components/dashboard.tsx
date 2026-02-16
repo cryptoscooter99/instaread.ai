@@ -13,7 +13,7 @@ interface Document {
 }
 
 interface UploadZoneProps {
-  onUploadComplete: (doc: Document) => void
+  onUploadComplete: () => void
 }
 
 export function UploadZone({ onUploadComplete }: UploadZoneProps) {
@@ -55,13 +55,9 @@ export function UploadZone({ onUploadComplete }: UploadZoneProps) {
         throw new Error(processData.error || 'Processing failed')
       }
 
-      onUploadComplete({
-        id: data.documentId,
-        filename: file.name,
-        status: 'completed',
-        createdAt: new Date().toISOString(),
-        extractedData: processData.data,
-      })
+      // Immediately refresh the list
+      onUploadComplete()
+      
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -166,9 +162,6 @@ export function DocumentList({ documents }: DocumentListProps) {
 
   return (
     <div className="space-y-4">
-      {/* Debug: Show count */}
-      <p className="text-sm text-gray-500">Total documents: {documents.length}</p>
-      
       {documents.map((doc) => (
         <div
           key={doc.id}
