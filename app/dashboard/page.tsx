@@ -24,7 +24,8 @@ export default function DashboardPage() {
 
   const fetchDocuments = async () => {
     try {
-      const response = await fetch('/api/documents')
+      // Add cache-busting query param
+      const response = await fetch('/api/documents?t=' + Date.now())
       if (response.ok) {
         const data = await response.json()
         setDocuments(data.documents || [])

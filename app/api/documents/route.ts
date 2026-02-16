@@ -3,14 +3,10 @@ import { prisma } from '@/lib/db'
 
 export async function GET() {
   try {
-    console.log('Fetching documents...')
-    
     const documents = await prisma.document.findMany({
       orderBy: { createdAt: 'desc' },
       take: 50,
     })
-
-    console.log('Found documents:', documents.length)
 
     const serializedDocuments = documents.map(doc => ({
       ...doc,
@@ -19,7 +15,16 @@ export async function GET() {
       extractedData: doc.extractedData as any,
     }))
 
-    return NextResponse.json({ documents: serializedDocuments })
+    // Add cache-busting headers
+    return NextResponse.json(
+      { documents: serializedDocuments },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          'Pragma': 'no-cache',
+        },
+      }
+    )
   } catch (error: any) {
     console.error('Failed to fetch documents:', error)
     return NextResponse.json(
