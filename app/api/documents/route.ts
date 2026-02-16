@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 
+// Force dynamic rendering - no caching
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 export async function GET() {
   try {
     const documents = await prisma.document.findMany({
@@ -15,13 +19,13 @@ export async function GET() {
       extractedData: doc.extractedData as any,
     }))
 
-    // Add cache-busting headers
     return NextResponse.json(
-      { documents: serializedDocuments },
+      { documents: serializedDocuments, count: documents.length },
       {
         headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
           'Pragma': 'no-cache',
+          'Expires': '0',
         },
       }
     )
