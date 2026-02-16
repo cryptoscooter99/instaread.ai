@@ -40,9 +40,9 @@ export interface ExtractedInvoiceData {
 export async function extractInvoiceData(fileUrl: string): Promise<ExtractedInvoiceData> {
   const venice = getVenice()
   
-  // Using Llama 3.2 11B Vision - good balance of accuracy and cost
+  // Using Qwen 2.5 VL 72B - Venice's vision model for document understanding
   const response = await venice.chat.completions.create({
-    model: 'llama-3.2-11b-vision',
+    model: 'qwen-2.5-vl-72b',
     messages: [
       {
         role: 'system',

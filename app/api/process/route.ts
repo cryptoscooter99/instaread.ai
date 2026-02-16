@@ -25,6 +25,9 @@ export async function POST(request: Request) {
       )
     }
 
+    console.log('Processing document:', documentId)
+    console.log('File URL:', document.blobUrl)
+
     // Update status to processing
     await prisma.document.update({
       where: { id: documentId },
@@ -32,8 +35,10 @@ export async function POST(request: Request) {
     })
 
     try {
-      // Extract data using OpenAI
+      // Extract data using Venice AI
+      console.log('Calling Venice AI...')
       const extractedData = await extractInvoiceData(document.blobUrl)
+      console.log('Venice AI response:', extractedData)
 
       // Update document with extracted data
       await prisma.document.update({
@@ -48,18 +53,24 @@ export async function POST(request: Request) {
         success: true,
         data: extractedData,
       })
-    } catch (error) {
+    } catch (aiError: any) {
+      console.error('AI processing error:', aiError)
+      
       // Mark as failed
       await prisma.document.update({
         where: { id: documentId },
         data: { status: 'failed' },
       })
-      throw error
+      
+      return NextResponse.json(
+        { error: 'AI processing failed: ' + (aiError.message || 'Unknown error') },
+        { status: 500 }
+      )
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Processing error:', error)
     return NextResponse.json(
-      { error: 'Processing failed' },
+      { error: 'Processing failed: ' + (error.message || 'Unknown error') },
       { status: 500 }
     )
   }
