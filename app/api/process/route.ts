@@ -35,9 +35,23 @@ export async function POST(request: Request) {
     })
 
     try {
-      // Extract data using Venice AI
-      console.log('Calling Venice AI...')
-      const extractedData = await extractInvoiceData(document.blobUrl)
+      // Fetch the image data
+      console.log('Fetching image from blob...')
+      const imageResponse = await fetch(document.blobUrl)
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image: ${imageResponse.status}`)
+      }
+      
+      const imageBuffer = await imageResponse.arrayBuffer()
+      const base64Image = Buffer.from(imageBuffer).toString('base64')
+      const mimeType = document.fileType || 'image/jpeg'
+      const dataUrl = `data:${mimeType};base64,${base64Image}`
+      
+      console.log('Image fetched, size:', base64Image.length, 'bytes')
+
+      // Extract data using Venice AI with base64 image
+      console.log('Calling Venice AI with base64 image...')
+      const extractedData = await extractInvoiceData(dataUrl)
       console.log('Venice AI response:', extractedData)
 
       // Update document with extracted data
