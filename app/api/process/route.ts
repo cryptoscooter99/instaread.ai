@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { extractInvoiceData } from '@/lib/openai'
+import { fromBuffer } from 'pdf2pic'
 
 export async function POST(request: Request) {
   try {
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
 
     console.log('Processing document:', documentId)
     console.log('File URL:', document.blobUrl)
+    console.log('File type:', document.fileType)
 
     // Update status to processing
     await prisma.document.update({
@@ -35,23 +37,43 @@ export async function POST(request: Request) {
     })
 
     try {
-      // Fetch the image data
-      console.log('Fetching image from blob...')
-      const imageResponse = await fetch(document.blobUrl)
-      if (!imageResponse.ok) {
-        throw new Error(`Failed to fetch image: ${imageResponse.status}`)
+      // Fetch the file data
+      console.log('Fetching file from blob...')
+      const fileResponse = await fetch(document.blobUrl)
+      if (!fileResponse.ok) {
+        throw new Error(`Failed to fetch file: ${fileResponse.status}`)
       }
       
-      const imageBuffer = await imageResponse.arrayBuffer()
-      const base64Image = Buffer.from(imageBuffer).toString('base64')
-      const mimeType = document.fileType || 'image/jpeg'
-      const dataUrl = `data:${mimeType};base64,${base64Image}`
-      
-      console.log('Image fetched, size:', base64Image.length, 'bytes')
+      const fileBuffer = await fileResponse.arrayBuffer()
+      console.log('File fetched, size:', fileBuffer.byteLength, 'bytes')
+
+      let base64Image: string
+
+      // Convert PDF to image if needed
+      if (document.fileType === 'application/pdf') {
+        console.log('Converting PDF to image...')
+        const convert = fromBuffer(Buffer.from(fileBuffer), {
+          density: 150,
+          format: 'png',
+          width: 1200,
+        })
+        
+        const result = await convert(1) // Convert first page
+        if (!result || !result.base64) {
+          throw new Error('PDF conversion failed')
+        }
+        base64Image = `data:image/png;base64,${result.base64}`
+        console.log('PDF converted to image')
+      } else {
+        // For images, use directly
+        const base64 = Buffer.from(fileBuffer).toString('base64')
+        const mimeType = document.fileType || 'image/jpeg'
+        base64Image = `data:${mimeType};base64,${base64}`
+      }
 
       // Extract data using Venice AI with base64 image
-      console.log('Calling Venice AI with base64 image...')
-      const extractedData = await extractInvoiceData(dataUrl)
+      console.log('Calling Venice AI...')
+      const extractedData = await extractInvoiceData(base64Image)
       console.log('Venice AI response:', extractedData)
 
       // Update document with extracted data
