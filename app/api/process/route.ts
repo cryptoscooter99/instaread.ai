@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { extractInvoiceData, extractInvoiceDataFromText } from '@/lib/openai'
-import pdfParse from 'pdf-parse'
+import { extractInvoiceData } from '@/lib/openai'
 
 export async function POST(request: Request) {
   try {
@@ -47,26 +46,38 @@ export async function POST(request: Request) {
       const fileBuffer = await fileResponse.arrayBuffer()
       console.log('File fetched, size:', fileBuffer.byteLength, 'bytes')
 
-      let extractedData
-
+      // Handle PDFs differently - for now, return error
       if (document.fileType === 'application/pdf') {
-        // Extract text from PDF
-        console.log('Extracting text from PDF...')
-        const pdfData = await pdfParse(Buffer.from(fileBuffer))
-        console.log('PDF text extracted, length:', pdfData.text.length)
+        // PDF processing requires conversion - skip for now
+        await prisma.document.update({
+          where: { id: documentId },
+          data: { 
+            status: 'completed',
+            extractedData: {
+              vendor_name: 'PDF processing temporarily disabled',
+              invoice_number: 'N/A',
+              note: 'Please upload PNG or JPG images for now'
+            }
+          },
+        })
         
-        // Send text to Venice for extraction
-        extractedData = await extractInvoiceDataFromText(pdfData.text)
-      } else {
-        // For images, use vision model
-        const base64 = Buffer.from(fileBuffer).toString('base64')
-        const mimeType = document.fileType || 'image/jpeg'
-        const dataUrl = `data:${mimeType};base64,${base64}`
-        
-        extractedData = await extractInvoiceData(dataUrl)
+        return NextResponse.json({
+          success: true,
+          data: {
+            vendor_name: 'PDF processing temporarily disabled',
+            note: 'Please upload PNG or JPG images for now'
+          },
+        })
       }
 
-      console.log('Extracted data:', extractedData)
+      // For images, use vision model
+      const base64 = Buffer.from(fileBuffer).toString('base64')
+      const mimeType = document.fileType || 'image/jpeg'
+      const dataUrl = `data:${mimeType};base64,${base64}`
+      
+      console.log('Calling Venice AI...')
+      const extractedData = await extractInvoiceData(dataUrl)
+      console.log('Venice AI response:', extractedData)
 
       // Update document with extracted data
       await prisma.document.update({
