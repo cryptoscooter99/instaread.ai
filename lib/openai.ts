@@ -110,3 +110,42 @@ IMPORTANT: Only extract what you can actually see. Do not guess or make up data.
     throw new Error('Invalid JSON from Venice AI')
   }
 }
+
+export async function extractInvoiceDataFromText(text: string): Promise<ExtractedInvoiceData> {
+  const venice = getVenice()
+  
+  // Using Qwen3 235B for text extraction
+  const response = await venice.chat.completions.create({
+    model: 'qwen3-235b-a22b-instruct-2507',
+    messages: [
+      {
+        role: 'system',
+        content: `You are an expert invoice and receipt data extractor. Extract ONLY the information that is actually present in the text. Do not make up or hallucinate any data.`,
+      },
+      {
+        role: 'user',
+        content: `Extract all visible information from this invoice/receipt text:\n\n${text}\n\nReturn ONLY a valid JSON object with these fields (ONLY include fields you can actually see):\n- vendor_name: The company name\n- vendor_address: Full address if present\n- invoice_number: Invoice number\n- receipt_number: Receipt number if different\n- invoice_date: Date in ISO format\n- date_paid: Payment date if different\n- due_date: Due date if present\n- total_amount: Final total as a number\n- subtotal: Subtotal before tax as a number\n- tax_amount: Total tax as a number\n- currency: Currency code (e.g., "USD")\n- line_items: Array of items with description, quantity, unit_price, tax, amount\n- payment_method: How they paid\n- bill_to: Customer name/address\n\nIMPORTANT: Only extract what you can actually see in the text. Do not guess or make up data.`,
+      },
+    ],
+    max_tokens: 2000,
+    temperature: 0.1,
+  })
+
+  const content = response.choices[0].message.content
+  if (!content) {
+    throw new Error('No response from Venice AI')
+  }
+
+  console.log('Venice raw response:', content.substring(0, 500))
+
+  // Try to extract JSON from the response
+  const jsonMatch = content.match(/\{[\s\S]*\}/)
+  const jsonStr = jsonMatch ? jsonMatch[0] : content
+  
+  try {
+    return JSON.parse(jsonStr) as ExtractedInvoiceData
+  } catch (e) {
+    console.error('Failed to parse Venice AI response:', content)
+    throw new Error('Invalid JSON from Venice AI')
+  }
+}
