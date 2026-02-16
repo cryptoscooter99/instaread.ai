@@ -1,31 +1,26 @@
 import { put } from '@vercel/blob'
 import { NextResponse } from 'next/server'
-import { authOptions } from '@/lib/auth'
-import { getServerSession } from 'next-auth/next'
 import { prisma } from '@/lib/db'
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions)
+    console.log('Upload API called')
     
-    // Allow anonymous uploads (5 max) or authenticated
-    let userId = session?.user?.id
-    
-    if (!userId) {
-      // Check anonymous limit
-      // For now, allow it - we'll track by IP or session
-    }
-
+    // Parse form data
     const formData = await request.formData()
     const file = formData.get('file') as File
     
     if (!file) {
+      console.log('No file in request')
       return NextResponse.json({ error: 'No file provided' }, { status: 400 })
     }
+
+    console.log('File received:', file.name, 'Type:', file.type, 'Size:', file.size)
 
     // Validate file type
     const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg']
     if (!allowedTypes.includes(file.type)) {
+      console.log('Invalid file type:', file.type)
       return NextResponse.json(
         { error: 'Invalid file type. Only PDF, PNG, JPG allowed.' },
         { status: 400 }
@@ -41,30 +36,33 @@ export async function POST(request: Request) {
     }
 
     // Upload to Vercel Blob
+    console.log('Uploading to Vercel Blob...')
     const blob = await put(file.name, file, {
       access: 'public',
     })
+    console.log('Blob URL:', blob.url)
 
-    // Create document record
+    // Create document record (anonymous - no userId)
+    console.log('Creating document in database...')
     const document = await prisma.document.create({
       data: {
         filename: file.name,
         blobUrl: blob.url,
         fileType: file.type,
         status: 'pending',
-        ...(userId && { userId }),
       },
     })
+    console.log('Document created:', document.id)
 
     return NextResponse.json({
       success: true,
       documentId: document.id,
       url: blob.url,
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Upload error:', error)
     return NextResponse.json(
-      { error: 'Upload failed' },
+      { error: 'Upload failed: ' + (error.message || 'Unknown error') },
       { status: 500 }
     )
   }
