@@ -40,40 +40,42 @@ export interface ExtractedInvoiceData {
 export async function extractInvoiceData(fileUrl: string): Promise<ExtractedInvoiceData> {
   const venice = getVenice()
   
-  // Using Qwen3 VL 235B - Venice's default vision model for document understanding
+  // Using Qwen3 VL 235B - Venice's default vision model
+  // Venice uses a simpler format - just send the URL in the message
   const response = await venice.chat.completions.create({
     model: 'qwen3-vl-235b-a22b',
     messages: [
       {
         role: 'system',
-        content: `You are an expert invoice data extractor. Extract all relevant information from the invoice image/PDF.
-        Return ONLY a valid JSON object with these fields:
-        - vendor_name: string
-        - vendor_address: string
-        - invoice_number: string
-        - invoice_date: string (ISO format)
-        - due_date: string (ISO format)
-        - total_amount: number
-        - subtotal: number
-        - tax_amount: number
-        - currency: string (3-letter code)
-        - line_items: array of objects with description, quantity, unit_price, total
-        
-        If a field is not found, omit it. Do not include any markdown or explanation.`,
+        content: 'You are an expert invoice data extractor. Extract all relevant information from the invoice and return ONLY a valid JSON object.',
       },
       {
         role: 'user',
-        content: [
-          {
-            type: 'image_url',
-            image_url: {
-              url: fileUrl,
-            },
-          },
-        ],
+        content: `Extract data from this invoice image: ${fileUrl}
+
+Return ONLY a JSON object with these fields (omit if not found):
+- vendor_name: string
+- vendor_address: string  
+- invoice_number: string
+- invoice_date: string (ISO format like 2024-01-15)
+- due_date: string (ISO format)
+- total_amount: number (just the number, no $)
+- subtotal: number
+- tax_amount: number
+- currency: string (3-letter code like USD)
+- line_items: array of {description, quantity, unit_price, total}
+
+Example response:
+{
+  "vendor_name": "Acme Corp",
+  "invoice_number": "INV-001",
+  "total_amount": 100.00,
+  "currency": "USD"
+}`,
       },
     ],
     max_tokens: 2000,
+    temperature: 0.1, // Low temperature for consistent JSON
   })
 
   const content = response.choices[0].message.content
@@ -81,13 +83,18 @@ export async function extractInvoiceData(fileUrl: string): Promise<ExtractedInvo
     throw new Error('No response from Venice AI')
   }
 
-  // Clean up the response - remove markdown code blocks if present
-  const jsonStr = content.replace(/```json\n?|\n?```/g, '').trim()
+  console.log('Venice raw response:', content)
+
+  // Try to extract JSON from the response
+  // Venice might wrap it in markdown or add extra text
+  const jsonMatch = content.match(/\{[\s\S]*\}/)
+  const jsonStr = jsonMatch ? jsonMatch[0] : content
   
   try {
     return JSON.parse(jsonStr) as ExtractedInvoiceData
   } catch (e) {
     console.error('Failed to parse Venice AI response:', content)
+    console.error('Attempted to parse:', jsonStr)
     throw new Error('Invalid JSON from Venice AI')
   }
 }
